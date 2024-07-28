@@ -57,7 +57,7 @@ Ensures emails are sent asynchronously to avoid blocking the API response.
 # Setup Instructions
 ## Clone the Repository:
 
-git clone https://github.com/yourusername/user_management_api.git
+git clone https://github.com/prasanthcode/user_management_api.git
 cd user_management_api
 
 ## Install Dependencies:
