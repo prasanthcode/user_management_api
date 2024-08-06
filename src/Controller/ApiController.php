@@ -75,7 +75,7 @@ class ApiController extends AbstractController
 
         $process = new Process([
             'mysqldump',
-            '--user=root'.$_ENV["DB_USERNAME"],
+            '--user='.$_ENV["DB_USERNAME"],
             '--password='.$_ENV["DB_PASSWORD"],
             '--host='.$_ENV["DB_HOST"],
             $_ENV['DB_NAME']
@@ -93,31 +93,50 @@ class ApiController extends AbstractController
     }
     #[Route('/api/restore', name: 'api_restore', methods: ['POST'])]
     public function restoreDatabase(Request $request, LoggerInterface $logger): Response
-    {
-        $databaseName = $_ENV['DB_NAME'];
-        $filePath = 'backup/backup.sql';
-        $user = $_ENV['DB_USERNAME'];
-        $password = $_ENV["DB_PASSWORD"];
-        $host = $_ENV["DB_HOST"];
+{
+    $databaseName = $_ENV['DB_NAME'];
+    $filePath = 'backup/backup.sql';
+    $user = $_ENV['DB_USERNAME'];
+    $password = $_ENV["DB_PASSWORD"];
+    $host = $_ENV["DB_HOST"];
 
+    // Check if the database exists; if not, create it
+    $createDatabaseCommand = sprintf(
+        'mysql --user=%s --password=%s --host=%s -e "CREATE DATABASE IF NOT EXISTS %s;"',
+        $user,
+        $password,
+        $host,
+        $databaseName
+    );
 
-        $restoreCommand = sprintf(
-            'mysql --user=%s --password=%s --host=%s %s < %s',
-            $user,
-            $password,
-            $host,
-            $databaseName,
-            $filePath
-        );
-
-        $restoreProcess = Process::fromShellCommandline($restoreCommand);
-        try {
-            $restoreProcess->mustRun();
-        } catch (ProcessFailedException $exception) {
-            $logger->error('Restore failed: ' . $exception->getMessage());
-            return $this->json(['error' => 'Restore failed: ' . $exception->getMessage()]);
-        }
-
-        return $this->json(['status' => 'database restored']);
+    $createDatabaseProcess = Process::fromShellCommandline($createDatabaseCommand);
+    try {
+        $createDatabaseProcess->mustRun();
+    } catch (ProcessFailedException $exception) {
+        $logger->error('Database creation failed: ' . $exception->getMessage());
+        return $this->json(['error' => 'Database creation failed: ' . $exception->getMessage()]);
     }
+
+    // Restore the database from the backup file
+    $restoreCommand = sprintf(
+        'mysql --user=%s --password=%s --host=%s %s < %s',
+        $user,
+        $password,
+        $host,
+        $databaseName,
+        $filePath
+    );
+
+    $restoreProcess = Process::fromShellCommandline($restoreCommand);
+    try {
+        $restoreProcess->mustRun();
+    } catch (ProcessFailedException $exception) {
+        $logger->error('Restore failed: ' . $exception->getMessage());
+        return $this->json(['error' => 'Restore failed: ' . $exception->getMessage()]);
+    }
+
+    return $this->json(['status' => 'Database restored successfully']);
+}
+
+  
 }
